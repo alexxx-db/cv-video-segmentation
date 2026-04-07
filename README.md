@@ -1,38 +1,120 @@
-# Databricks Solution Accelerator Template - MODIFY THIS README.md
+# 🎬 Segment Video App (Databricks + Plotly Dash)
 
-[![Databricks](https://img.shields.io/badge/Databricks-Solution_Accelerator-FF3621?style=for-the-badge&logo=databricks)](https://databricks.com)
-[![Unity Catalog](https://img.shields.io/badge/Unity_Catalog-Enabled-00A1C9?style=for-the-badge)](https://docs.databricks.com/en/data-governance/unity-catalog/index.html)
-[![Serverless](https://img.shields.io/badge/Serverless-Compute-00C851?style=for-the-badge)](https://docs.databricks.com/en/compute/serverless.html)
+A small Plotly Dash app designed to run as a **Databricks App** and be deployed via **Databricks Asset Bundles (DABs)**.
 
-## Installation Guidelines
+![segment-video-app-gif](https://github.com/user-attachments/assets/f613f43d-c9d7-4fea-97fb-59bc21db66f2)
 
-1. Clone the project you'd like to run into your Databricks Workspace
+It lets a user:
 
-<img width="1726" height="677" alt="Screenshot 2025-07-23 at 11 05 25 AM" src="https://github.com/user-attachments/assets/55b1729f-ad07-420e-a271-843266abfb71" />
+- Upload a video (drag/drop or browse) **or** load an existing video from a Unity Catalog Volume path
+- Enter a free-text segmentation prompt (e.g., "weimaraner", "person wearing red shirt")
+- Configure processing options:
+  - `frame_stride` (default **30**): process every Nth frame (higher = faster, less accurate)
+  - `truncate` (default **true**): output only matching segments vs full video
+  - `threshold` (default **0.5**): detection sensitivity (0.25-0.9; lower = more sensitive, more false positives)
+- Upload the video to a Unity Catalog Volume: `/Volumes/pubsec_video_processing/cv/auto_segment/inputs/`
+- Trigger an existing Databricks Job: **auto-segment-video** (Job ID **1063278823055445**) with parameters:
+  - `trigger_location`: the full Volume path of the uploaded video
+  - `prompt`: the user-entered prompt
+- Additional parameters sent to the job:
+  - `frame_stride`: integer (stringified)
+  - `truncate`: `true`/`false` (stringified)
+  - `threshold`: float (stringified)
+- Poll the job status and display elapsed time
+- When complete, poll for output at `/Volumes/pubsec_video_processing/cv/auto_segment/outputs/` (same filename) and display it in the browser
+- Display an **AI-generated description** under the output video (if present), pulled from:
+  - `/Volumes/pubsec_video_processing/cv/auto_segment/descriptions/<output_stem>.txt`
+  - Example: `outputs/my_video.mp4` → `descriptions/my_video.txt`
+- If a user leaves and returns later, they can look up an output video by filename and display the video **and** description.
+- Serve output files through a lightweight `/download` route (streamed from the UC volume via `w.files.download`) to avoid embedding large blobs in the page.
 
-2. Open the Asset Bundle Editor in the Databricks UI
+## 📁 Project Structure
 
-<img width="1120" height="665" alt="Screenshot 2025-07-23 at 11 06 12 AM" src="https://github.com/user-attachments/assets/d1f91256-eb8f-4456-8d88-c0a37b1bd4c5" />
+```
+segment-video-app/
+├── app/
+│   ├── app.py              # Dash application
+│   ├── requirements.txt    # Python dependencies
+│   ├── app.yml             # Databricks App configuration
+│   └── assets/
+│       └── custom.css      # Custom styling
+├── notebooks/
+│   ├── job-auto-segment-video.ipynb       # Main job notebook
+│   ├── job-auto-segment-video-fmapi.ipynb # Alternative job using FM API
+│   ├── model-sam3-video.ipynb             # SAM 3 video model experiments
+│   ├── model-sam3.ipynb                   # SAM 3 model experiments
+│   ├── model-blip.ipynb                   # BLIP model experiments
+│   ├── model-gemini3flash.ipynb           # Gemini 3 Flash experiments
+│   ├── model-qwen3.ipynb                  # Qwen 3 experiments
+│   └── workspace-setup.ipynb              # Initial workspace setup
+├── env.example             # Example env vars for local dev
+├── databricks.yml          # Databricks Asset Bundle (DAB) definition
+└── README.md               # This file
+```
 
-3. Click on "Deploy"
+## 🚀 Local Development
 
-<img width="1523" height="902" alt="Screenshot 2025-07-23 at 11 09 37 AM" src="https://github.com/user-attachments/assets/9564cbdd-c5c5-4210-bf27-2b19e6efc85b" />
+1) Create a venv and install requirements:
 
-4. Navigate to the Deployments tab in the Asset Bundle UI (🚀 icon) and click "Run" on the job available. This will run the notebooks from this project sequentially.
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r app/requirements.txt
+```
 
-<img width="1527" height="880" alt="Screenshot 2025-07-23 at 11 10 13 AM" src="https://github.com/user-attachments/assets/0f612882-7123-449b-8349-1835bc59523c" />
+2) Configure environment variables:
 
-## Contributing
+```bash
+cp env.example .env
+export $(cat .env | xargs)
+```
 
-1. **git clone** this project locally
-2. Utilize the Databricks CLI to test your changes against a Databricks workspace of your choice
-3. Contribute to repositories with pull requests (PRs), ensuring that you always have a second-party review from a capable teammate
+3) Run the app:
 
+```bash
+python app/app.py
+```
 
-## 📄 Third-Party Package Licenses - FILL IN WITH YOUR PROJECT'S OPEN SOURCE PACKAGES + LICENSING
+Then open `http://localhost:8050`.
 
-&copy; 2025 Databricks, Inc. All rights reserved. The source in this project is provided subject to the Databricks License [https://databricks.com/db-license-source]. All included or referenced third party libraries are subject to the licenses set forth below.
+## 🚀 Deploying to Databricks
 
-| Package | License | Copyright |
-|---------|---------|-----------|
-| | | |
+To deploy this app and the associated job to Databricks using Asset Bundles:
+
+```bash
+# Validate the bundle configuration
+databricks bundle validate
+
+# Deploy to dev environment (default)
+databricks bundle deploy
+
+# Deploy to prod environment
+databricks bundle deploy --target prod
+```
+
+The `databricks.yml` file defines:
+- The Dash app deployment configuration
+- The auto-segment-video job with file arrival trigger
+- Environment-specific settings (dev/prod)
+
+## 📓 Notebooks
+
+The `notebooks/` folder contains:
+
+- **job-auto-segment-video.ipynb**: Main production job for video segmentation
+- **job-auto-segment-video-fmapi.ipynb**: Alternative implementation using Foundation Model API
+- **model-sam3-video.ipynb**: Experiments with SAM 3 for video segmentation
+- **model-sam3.ipynb**: SAM 3 model testing and evaluation
+- **model-blip.ipynb**: BLIP model for image captioning and description generation
+- **model-gemini3flash.ipynb**: Gemini 3 Flash model experiments
+- **model-qwen3.ipynb**: Qwen 3 model experiments
+- **workspace-setup.ipynb**: Initial setup and configuration for the Databricks workspace
+
+## 🔐 Auth Notes
+
+This app uses the `databricks-sdk` and expects authentication via environment variables (for local), or the Databricks Apps runtime (for deployed).
+
+Helpful references:
+
+- Databricks Asset Bundles: `https://docs.databricks.com/aws/en/dev-tools/bundles?utm_source=openai`
+- Databricks SDK for Python (Files in UC volumes): `https://docs.databricks.com/aws/en/dev-tools/sdk-python#manage-files-in-unity-catalog-volumes`

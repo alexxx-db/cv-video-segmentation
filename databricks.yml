@@ -1,94 +1,56 @@
 bundle:
-  name: demo_workflow
+  name: segment-video-app
 
 variables:
-  # Project name - replace with your solution accelerator name
-  project_name:
-    description: "Name of your solution accelerator"
-    default: "my-solution-accelerator"
-    
-  # The "warehouse_id" variable is used to reference the warehouse used by the dashboard.
-  warehouse_id:
-    lookup:
-      # Replace this with the name of your SQL warehouse.
-      warehouse: "Shared Unity Catalog Serverless"
-      
-  # Environment variable used for deployment paths
-  environment:
-    description: "Deployment environment (dev, staging, prod)"
-    default: "dev"
+  SERVICE_PRINCIPAL_NAME:
+    description: "The name of the service principal of the app so it can manage the job."
+
+resources:
+  apps:
+    segment_video_app:
+      name: segment-video-app
+      description: "Upload a video + prompt; trigger Databricks Job to segment; display output from Volumes."
+      source_code_path: ./app
+  jobs:
+    auto_segment_video:
+      name: auto-segment-video
+      email_notifications:
+        on_failure:
+          - justin.monaldo@databricks.com
+        no_alert_for_skipped_runs: true
+      notification_settings:
+        no_alert_for_skipped_runs: true
+      trigger:
+        pause_status: PAUSED
+        file_arrival:
+          url: /Volumes/pubsec_video_processing/cv/auto_segment/inputs/
+      max_concurrent_runs: 5
+      permissions:
+        - service_principal_name: ${var.SERVICE_PRINCIPAL_NAME}
+          level: CAN_MANAGE_RUN
+      tasks:
+        - task_key: auto-segment-video
+          notebook_task:
+            notebook_path: ./notebooks/job-auto-segment-video.ipynb
+            base_parameters:
+              trigger_location: "{{job.trigger.file_arrival.location}}"
+              prompt: weimaraner
+              frame_stride: "30"
+              threshold: "0.5"
+              truncate: "1"
+            source: WORKSPACE
+      queue:
+        enabled: true
+      # budget_policy_id: f20a71f9-ec07-4b92-a33f-9f3d3f23c428
+      performance_target: PERFORMANCE_OPTIMIZED
 
 targets:
   dev:
     default: true
     mode: development
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/pubsec_video_processing/
 
-# Customize the resources below based on your solution accelerator needs
-resources:
-  # Uncomment and customize if you have Databricks Apps
-  # apps:
-  #   your_app:
-  #     name: "your-app-name"
-  #     description: "Your app description"
-  #     source_code_path: "/Users/${workspace.current_user.userName}/${var.project_name}-${var.environment}/files/apps/your_app"
 
-  # Uncomment and customize if you have dashboards
-  # dashboards:
-  #   your_dashboard:
-  #     display_name: "Your Dashboard"
-  #     file_path: "./dashboards/your_dashboard.lvdash.json"
-  #     warehouse_id: "${var.warehouse_id}"
-
-  # Example job workflow - customize based on your notebooks
-  jobs:
-    example_workflow:
-      name: "${var.project_name} - Example Workflow"
-      tasks:
-        - task_key: example_notebook
-          notebook_task:
-            notebook_path: "./notebooks/example_notebook.ipynb"
-        - task_key: example_databricks_notebook
-          depends_on:
-            - task_key: example_notebook
-          notebook_task:
-            notebook_path: "./notebooks/example_databricks_notebook.py"
-
-# Example resources you can uncomment and customize:
-# resources:
-#   apps:
-#     your_app:
-#       name: "your-app-name"
-#       description: "Your app description"
-#       source_code_path: "./apps/your_app"
-#
-#   jobs:
-#     your_workflow:
-#       name: "Your Workflow Name"
-#       tasks:
-#         - task_key: first_task
-#           notebook_task:
-#             notebook_path: "./notebooks/your_first_notebook.ipynb"
-#         - task_key: second_task
-#           depends_on:
-#             - task_key: first_task
-#           notebook_task:
-#             notebook_path: "./notebooks/your_second_notebook.ipynb"
-#
-#   pipelines:
-#     your_pipeline:
-#       name: "Your Pipeline"
-#       storage: "/Shared/your-pipeline"
-#       configuration:
-#         your_config: "value"
-#
-#   models:
-#     your_model:
-#       name: "Your Model"
-#       model_path: "models/your_model"
-#
-#   dashboards:
-#     your_dashboard:
-#       display_name: "Your Dashboard"
-#       file_path: "./dashboards/your_dashboard.lvdash.json"
-
-# For more options and schema, see: https://docs.databricks.com/aws/en/dev-tools/bundles/settings
