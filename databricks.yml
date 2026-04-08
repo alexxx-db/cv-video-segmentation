@@ -31,7 +31,7 @@ resources:
       tasks:
         - task_key: auto-segment-video
           notebook_task:
-            notebook_path: ./notebooks/job-auto-segment-video.ipynb
+            notebook_path: ./notebooks/job-auto-segment-video-fmapi.ipynb
             base_parameters:
               trigger_location: "{{job.trigger.file_arrival.location}}"
               prompt: weimaraner
@@ -41,7 +41,6 @@ resources:
             source: WORKSPACE
       queue:
         enabled: true
-      # budget_policy_id: f20a71f9-ec07-4b92-a33f-9f3d3f23c428
       performance_target: PERFORMANCE_OPTIMIZED
 
 targets:
