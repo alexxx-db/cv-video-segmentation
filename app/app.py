@@ -23,6 +23,18 @@ INPUTS_DIR = f"{AUTO_SEGMENT_VOLUME_PATH}/inputs"
 OUTPUTS_DIR = f"{AUTO_SEGMENT_VOLUME_PATH}/outputs"
 DESCRIPTIONS_DIR = f"{AUTO_SEGMENT_VOLUME_PATH}/descriptions"
 JOB_ID = int(os.getenv("JOB_ID", "1028016084442571"))
+VIDEO_EXTENSIONS = {
+    ".mp4",
+    ".mov",
+    ".avi",
+    ".mkv",
+    ".webm",
+    ".m4v",
+    ".wmv",
+    ".flv",
+    ".mpeg",
+    ".mpg",
+}
 
 
 def _now_utc() -> datetime:
@@ -79,6 +91,27 @@ def _output_exists(w: WorkspaceClient, path: str) -> bool:
         return True
     except NotFound:
         return False
+
+
+def _is_video_filename(filename: str) -> bool:
+    _stem, ext = os.path.splitext(filename)
+    return ext.lower() in VIDEO_EXTENSIONS
+
+
+def _list_video_filenames(w: WorkspaceClient, directory_path: str) -> list[str]:
+    try:
+        entries = list(w.files.list_directory_contents(directory_path=directory_path))
+    except NotFound:
+        return []
+    except Exception:
+        return []
+
+    names = [
+        e.name
+        for e in entries
+        if e.name and not e.is_directory and _is_video_filename(e.name)
+    ]
+    return sorted(set(names), key=str.lower)
 
 
 def _description_path_for_output(output_path: str) -> str:
@@ -318,8 +351,9 @@ app.layout = dbc.Container(
                                                                 [
                                                                     dbc.Input(
                                                                         id="existing-filename",
-                                                                        placeholder="e.g. my_video.mp4 or /Volumes/catalog/schema/volume/file.mp4",
+                                                                        placeholder="Type a filename/path or pick from dropdown",
                                                                         type="text",
+                                                                        list="existing-filename-options",
                                                                     ),
                                                                     dbc.Button(
                                                                         "Load",
@@ -330,6 +364,7 @@ app.layout = dbc.Container(
                                                                 ],
                                                                 className="mt-2",
                                                             ),
+                                                            html.Datalist(id="existing-filename-options"),
                                                         ],
                                                         className="mt-3",
                                                     ),
@@ -548,9 +583,11 @@ app.layout = dbc.Container(
                                     ),
                                     dbc.Input(
                                         id="lookup-filename",
-                                        placeholder="e.g. my_video_20250101_120000.mp4",
+                                        placeholder="Type a filename or pick from dropdown",
                                         className="mt-2",
+                                        list="lookup-filename-options",
                                     ),
+                                    html.Datalist(id="lookup-filename-options"),
                                     dbc.Button(
                                         "Load output by filename",
                                         id="lookup-button",
@@ -889,6 +926,23 @@ def lookup_output(n_clicks: int, filename: Optional[str]):
 
 
 @app.callback(
+    Output("existing-filename-options", "children"),
+    Output("lookup-filename-options", "children"),
+    Input("upload-status", "children"),
+    Input("store-output-path", "data"),
+    Input("lookup-status", "children"),
+)
+def refresh_volume_video_options(_upload_status, _store_output_path, _lookup_status):
+    w = _get_client()
+    input_videos = _list_video_filenames(w, INPUTS_DIR)
+    output_videos = _list_video_filenames(w, OUTPUTS_DIR)
+    return (
+        [html.Option(value=name) for name in input_videos],
+        [html.Option(value=name) for name in output_videos],
+    )
+
+
+@app.callback(
     Output("store-upload-path", "data", allow_duplicate=True),
     Output("store-output-path", "data", allow_duplicate=True),
     Output("store-run-id", "data", allow_duplicate=True),
@@ -906,13 +960,14 @@ def lookup_output(n_clicks: int, filename: Optional[str]):
     Output("poll-interval", "disabled", allow_duplicate=True),
     Output("input-controls", "style", allow_duplicate=True),
     Output("existing-filename", "value", allow_duplicate=True),
+    Output("lookup-filename", "value", allow_duplicate=True),
     Input("reset", "n_clicks"),
     prevent_initial_call=True,
 )
 def reset_all(n_clicks: int):
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
-    return None, None, None, None, None, None, None, None, "", 5, "false", 0.5, "facebook/sam3", "google/gemini-3-flash", True, {}, ""
+    return None, None, None, None, None, None, None, None, "", 5, "false", 0.5, "facebook/sam3", "google/gemini-3-flash", True, {}, "", ""
 
 
 if __name__ == "__main__":
