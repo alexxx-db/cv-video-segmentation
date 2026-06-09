@@ -16,10 +16,13 @@ from databricks.sdk.errors import NotFound
 from flask import Response, abort, request, stream_with_context
 
 
-INPUTS_DIR = "/Volumes/pubsec_video_processing/cv/auto_segment/inputs"
-OUTPUTS_DIR = "/Volumes/pubsec_video_processing/cv/auto_segment/outputs"
-DESCRIPTIONS_DIR = OUTPUTS_DIR.rsplit("/", 1)[0] + "/descriptions"
-JOB_ID = 1063278823055445 
+AUTO_SEGMENT_VOLUME_PATH = os.getenv(
+    "AUTO_SEGMENT_VOLUME_PATH", "/Volumes/public_sector/cv/auto_segment"
+).rstrip("/")
+INPUTS_DIR = f"{AUTO_SEGMENT_VOLUME_PATH}/inputs"
+OUTPUTS_DIR = f"{AUTO_SEGMENT_VOLUME_PATH}/outputs"
+DESCRIPTIONS_DIR = f"{AUTO_SEGMENT_VOLUME_PATH}/descriptions"
+JOB_ID = int(os.getenv("JOB_ID", "1028016084442571"))
 
 
 def _now_utc() -> datetime:

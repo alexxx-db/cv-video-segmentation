@@ -5,10 +5,14 @@ command: [
   "app.py"
 ]
 
+env:
+  - name: JOB_ID
+    valueFrom: "app-job"
+
 # env:
-#   - name: HOST
-#     value: "0.0.0.0"
-#   - name: PORT
-#     value: "8050"
+#   - name: UV_INDEX_URL
+#     value: "https://pypi-proxy.cloud.databricks.com/simple"
+#   - name: PIP_INDEX_URL
+#     value: "https://pypi-proxy.cloud.databricks.com/simple"
 
 

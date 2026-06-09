@@ -13,7 +13,7 @@ It lets a user:
   - `frame_stride` (default **30**): process every Nth frame (higher = faster, less accurate)
   - `truncate` (default **true**): output only matching segments vs full video
   - `threshold` (default **0.5**): detection sensitivity (0.25-0.9; lower = more sensitive, more false positives)
-- Upload the video to a Unity Catalog Volume: `/Volumes/pubsec_video_processing/cv/auto_segment/inputs/`
+- Upload the video to a Unity Catalog Volume: `${AUTO_SEGMENT_VOLUME_PATH}/inputs/`
 - Trigger an existing Databricks Job: **auto-segment-video** (Job ID **1063278823055445**) with parameters:
   - `trigger_location`: the full Volume path of the uploaded video
   - `prompt`: the user-entered prompt
@@ -22,9 +22,9 @@ It lets a user:
   - `truncate`: `true`/`false` (stringified)
   - `threshold`: float (stringified)
 - Poll the job status and display elapsed time
-- When complete, poll for output at `/Volumes/pubsec_video_processing/cv/auto_segment/outputs/` (same filename) and display it in the browser
+- When complete, poll for output at `${AUTO_SEGMENT_VOLUME_PATH}/outputs/` (same filename) and display it in the browser
 - Display an **AI-generated description** under the output video (if present), pulled from:
-  - `/Volumes/pubsec_video_processing/cv/auto_segment/descriptions/<output_stem>.txt`
+  - `${AUTO_SEGMENT_VOLUME_PATH}/descriptions/<output_stem>.txt`
   - Example: `outputs/my_video.mp4` → `descriptions/my_video.txt`
 - If a user leaves and returns later, they can look up an output video by filename and display the video **and** description.
 - Serve output files through a lightweight `/download` route (streamed from the UC volume via `w.files.download`) to avoid embedding large blobs in the page.
